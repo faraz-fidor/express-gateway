@@ -1,0 +1,112 @@
+version: '2.1'
+services:
+  redis:
+    image: redis:4.0.1
+    networks:
+      sample:
+        aliases:
+          - rredis
+  db:
+    image: mysql:5.6
+    environment:
+      - MYSQL_ROOT_PASSWORD=dummy
+      - MYSQL_ROOT_USERANME=root
+      - MYSQL_DATABASE=express_gateway_production
+    ports:
+      - "3307:3306"
+    networks:
+      sample:
+        aliases:
+          - dbdb
+  web:
+    tty: true
+    stdin_open: true
+    build: .
+    ports:
+      - "3052:8080"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - sample
+      - dockernet
+    environment:
+      # only for docker-compose, don't use in real prod
+      - RAILS_SERVE_STATIC_FILES=true
+
+      - DB_DATABASE=express_gateway_local
+      - DB_USERNAME=root
+      - DB_PASSWORD=dummy
+      - DB_HOST=dbdb
+      - DB_PORT=3306
+
+      - DECISION_ENGINE_URL=http://192.168.0.1:3051
+      - DECISION_ENGINE_HTAUTH_USERNAME=fidor
+      - DECISION_ENGINE_HTAUTH_PASSWORD=fidor
+      - DECISION_ENGINE_HOOKS_URL=http://192.168.0.1:3051/express_gateway/v1/express_gateway
+
+      - BACKOFFICE_HTAUTH_USERNAME=fidor
+      - BACKOFFICE_HTAUTH_PASSWORD=fidor
+
+      - SIDEKIQ_REDIS_URL='redis://rredis:6379/0'
+      - SIDEKIQ_CONCURRENCY=5
+      - SIDEKIQ_MONITORING_USERNAME='sidekiq'
+      - SIDEKIQ_MONITORING_PASSWORD='sidekiq'
+
+      - LOAN_SERVICE_URL=http://192.168.0.1:3050
+      - LOAN_SERVICE_HTAUTH_USERNAME=fidor
+      - LOAN_SERVICE_HTAUTH_PASSWORD=fidor
+      - LOAN_SERVICE_TIMEOUT=15
+      - LOAN_SERVICE_HOOKS_URL=http://192.168.0.1:3050/express_gateway/v1/express_gateway
+
+
+
+  sidekiq:
+    tty: true
+    stdin_open: true
+    build: .
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    depends_on:
+      - db
+      - redis
+    networks:
+      - sample
+      - dockernet
+    environment:
+      # only for docker-compose, don't use in real prod
+      - DB_DATABASE=express_gateway_local
+      - DB_USERNAME=root
+      - DB_PASSWORD=dummy
+      - DB_HOST=dbdb
+      - DB_PORT=3306
+
+      - DECISION_ENGINE_URL=http://192.168.0.1:3051
+      - DECISION_ENGINE_HTAUTH_USERNAME=fidor
+      - DECISION_ENGINE_HTAUTH_PASSWORD=fidor
+      - DECISION_ENGINE_HOOKS_URL=http://192.168.0.1:3051/express_gateway/v1/express_gateway
+
+      - BACKOFFICE_HTAUTH_USERNAME=fidor
+      - BACKOFFICE_HTAUTH_PASSWORD=fidor
+
+      - SIDEKIQ_REDIS_URL='redis://rredis:6379/0'
+      - SIDEKIQ_CONCURRENCY=5
+      - SIDEKIQ_MONITORING_USERNAME='sidekiq'
+      - SIDEKIQ_MONITORING_PASSWORD='sidekiq'
+
+      - LOAN_SERVICE_URL=http://192.168.0.1:3050
+      - LOAN_SERVICE_HTAUTH_USERNAME=fidor
+      - LOAN_SERVICE_HTAUTH_PASSWORD=fidor
+      - LOAN_SERVICE_TIMEOUT=15
+      - LOAN_SERVICE_HOOKS_URL=http://192.168.0.1:3050/express_gateway/v1/express_gateway
+      
+      
+networks:
+  sample:
+  dockernet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "192.168.0.0/24"
+          gateway: "192.168.0.1"
+
+
